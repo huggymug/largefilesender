@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 
-// Load environment variables from the private .env file
+// Load environment variables from your private local .env file
 dotenv.config();
 
 const app = express();
@@ -16,7 +16,7 @@ if (!PASSWORD) {
   process.exit(1);
 }
 
-// Automatically create an 'uploads' directory if it doesn't exist
+// Automatically create an 'uploads' directory if it doesn't exist yet
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
@@ -123,17 +123,17 @@ app.get('/', (req, res) => {
 
           if(files.length === 0) return;
 
-          // Disable inputs during active upload
+          // Disable inputs during active upload session
           submitBtn.disabled = true;
           progressContainer.style.display = 'block';
           
-          // Process files sequentially to preserve phone/browser stability
+          // Process files one by one to keep phones/browsers from crashing
           for(let i = 0; i < files.length; i++) {
             const formData = new FormData();
             formData.append('astroFile', files[i]);
             formData.append('password', password);
 
-            status.innerText = \`Uploading (\${i + 1}/\${files.length}): \${files[i].name}\`;
+            status.innerText = "Uploading (" + (i + 1) + "/" + files.length + "): " + files[i].name;
             progressFill.style.width = '0%';
 
             try {
@@ -141,7 +141,7 @@ app.get('/', (req, res) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', '/upload', true);
 
-                // Live updates for massive files
+                // Track upload percentages dynamically
                 xhr.upload.onprogress = (event) => {
                   if (event.lengthComputable) {
                     const percentComplete = Math.round((event.loaded / event.total) * 100);
@@ -157,7 +157,7 @@ app.get('/', (req, res) => {
                   }
                 };
 
-                xhr.onerror = () => reject('Network error connection lost.');
+                xhr.onerror = () => reject('Network error, connection lost.');
                 xhr.send(formData);
               });
             } catch (error) {
@@ -171,7 +171,7 @@ app.get('/', (req, res) => {
           progressFill.style.width = '100%';
           alert('Transmission complete! Check the tower PC uploads folder.');
           
-          // Reset UI
+          // Reset file inputs safely
           document.getElementById('fileInput').value = '';
           submitBtn.disabled = false;
           setTimeout(() => { progressContainer.style.display = 'none'; }, 3000);
@@ -187,9 +187,8 @@ app.post('/upload', (req, res) => {
   const form = formidable({
     uploadDir: uploadDir,
     keepExtensions: true,
-    maxFileSize: 50 * 1024 * 1024 * 1024, // High 50GB limit per file for massive video stacks
+    maxFileSize: 50 * 1024 * 1024 * 1024, // 50GB max per single file for massive video data blocks
     filter: function ({ name, originalFilename, mimetype }) {
-      // Keep everything submitted
       return true;
     }
   });
@@ -200,13 +199,12 @@ app.post('/upload', (req, res) => {
       return res.status(500).send('File parsing error.');
     }
 
-    // Formidable fields return arrays in newer versions
     const submittedPassword = Array.isArray(fields.password) ? fields.password[0] : fields.password;
     const uploadedFile = files.astroFile ? (Array.isArray(files.astroFile) ? files.astroFile[0] : files.astroFile) : null;
 
-    // Password Check
+    // Secure Verification Layer
     if (submittedPassword !== PASSWORD) {
-      // If password doesn't match, instantly erase the file from your drive
+      // Instantly shred the file from the drive memory if the password is wrong
       if (uploadedFile && uploadedFile.filepath) {
         fs.unlinkSync(uploadedFile.filepath);
       }
@@ -217,24 +215,24 @@ app.post('/upload', (req, res) => {
       return res.status(400).send('No file data captured.');
     }
 
-    // Rename file back to its pristine, original name
+    // Rename file back to its original name safely
     const originalName = uploadedFile.originalFilename || 'astro_file';
-    const finalPath = path.join(uploadDir, \`\${Date.now()}-\${originalName}\`);
+    const finalPath = path.join(uploadDir, `${Date.now()}-${originalName}`);
     
     fs.rename(uploadedFile.filepath, finalPath, (renameErr) => {
       if (renameErr) {
         console.error(renameErr);
         return res.status(500).send('Error cataloging file.');
       }
-      console.log(\`📦 Successfully saved: \${originalName}\`);
+      console.log(`📦 Successfully saved: ${originalName}`);
       res.send('Success.');
     });
   });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(\`\n==================================================\`);
-  console.log(\`🌌 ASTRO DATA DROP SERVER ACTIVE\`);
-  console.log(\`🖥️  Listening internally at: http://localhost:\${PORT}\`);
-  console.log(\`==================================================\n\`);
+  console.log(`\n==================================================`);
+  console.log(`🌌 ASTRO DATA DROP SERVER ACTIVE`);
+  console.log(`🖥️  Listening internally at: http://localhost:${PORT}`);
+  console.log(`==================================================\n`);
 });
